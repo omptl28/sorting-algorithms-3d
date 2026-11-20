@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Sorting Algorithms in 3D</title>
+    <link rel="stylesheet" href="css/style.css">
+
+    <!-- Vertex shader: moves each vertex into eye space and passes the
+         eye-space position and normal on for per-fragment lighting. -->
+    <script id="vertex-shader" type="x-shader/x-vertex">
+    #version 300 es
+
+    in vec4 aPosition;
+    in vec3 aNormal;
+
+    uniform mat4 uModelView;
+    uniform mat4 uProjection;
+    uniform mat3 uNormalMatrix;
+
+    out vec3 vPosition;   // eye-space position
+    out vec3 vNormal;     // eye-space normal
+
+    void main()
+    {
+        vec4 eyePos = uModelView * aPosition;
+        vPosition = eyePos.xyz;
+        vNormal = normalize(uNormalMatrix * aNormal);
+        gl_Position = uProjection * eyePos;
+    }
+    </script>
+
+    <!-- Fragment shader: Phong lighting (ambient + diffuse + specular) from
+         one point light, computed for every pixel. Lines (grid, swap paths)
+         set uLit = 0 and are drawn in a flat colour. -->
+    <script id="fragment-shader" type="x-shader/x-fragment">
+    #version 300 es
+    precision mediump float;
+
+    in vec3 vPosition;
+    in vec3 vNormal;
+
+    uniform vec4 uColor;          // diffuse colour of the object
+    uniform vec3 uLightPosition;  // point light, already in eye space
+    uniform int uLit;             // 1 = Phong lighting, 0 = flat colour
+    uniform float uShininess;
+
+    out vec4 fColor;
+
+    const float ambientStrength = 0.40;
+    const vec3 lightColor = vec3(1.0, 1.0, 1.0);
+    const vec3 specularColor = vec3(0.35, 0.35, 0.35);
+
+    void main()
+    {
+        if (uLit == 0) {
+            fColor = uColor;
+            return;
+        }
+
+        vec3 N = normalize(vNormal);
+        vec3 L = normalize(uLightPosition - vPosition);   // to the light
+        vec3 V = normalize(-vPosition);                    // to the eye (eye is at the origin)
+        vec3 H = normalize(L + V);                         // halfway vector
+
+        // diffuse: brighter when the surface faces the light (Lambert)
+        // specular: shiny highlight where the halfway vector lines up with the normal (Blinn-Phong)
+        float kd = max(dot(L, N), 0.0);
+        float ks = (kd > 0.0) ? pow(max(dot(N, H), 0.0), uShininess) : 0.0;
+
+        vec3 ambient  = ambientStrength * uColor.rgb;
+        vec3 diffuse  = kd * lightColor * uColor.rgb * 0.85;
+        vec3 specular = ks * specularColor;
+
+        fColor = vec4(ambient + diffuse + specular, uColor.a);
+    }
+    </script>
+
+    <!-- Helpers first, then our files; main.js last because it starts the app on page load -->
+    <script src="Common/MV.js"></script>
+    <script src="Common/initShaders.js"></script>
+    <script src="js/geometry.js"></script>
+    <script src="js/sorts.js"></script>
+    <script src="js/camera.js"></script>
+    <script src="js/animator.js"></script>
+    <script src="js/panel.js"></script>
+    <script src="js/controls.js"></script>
+    <script src="js/main.js"></script>
+</head>
+
+<body>
+    <!-- Title bar -->
+    <header>
+        <h1>Sorting Algorithms in 3D</h1>
+        <span class="subtitle">CMPSC 457 Final Project · GA2 prototype</span>
+    </header>
+
+    <main>
+        <!-- 3D view: the WebGL canvas plus text overlays drawn on top of it -->
+        <section class="viewport">
+            <canvas id="gl-canvas" aria-label="3D view of the array being sorted"></canvas>
+            <div class="overlay top-left">
+                <div id="status" class="status"></div>
+            </div>
+            <div class="overlay top-right">
+                <span id="view-mode" class="badge"></span>
+            </div>
+            <div class="overlay bottom-left help">
+                Drag: orbit · Wheel: zoom · Space: play/pause · →: step · R: shuffle ·
+                1–4: algorithm · O: front view · C: reset camera · +/−: speed
+            </div>
+        </section>
+
+        <!-- Side panel: pseudocode (filled in by panel.js), counters and colour legend -->
+        <aside class="panel">
+            <h2 id="algo-name">Bubble sort</h2>
+            <ol id="pseudocode" class="pseudocode" start="0"></ol>
+
+            <div class="stats">
+                <div><span class="label">Comparisons</span><span id="stat-comparisons" class="value">0</span></div>
+                <div><span class="label">Swaps</span><span id="stat-swaps" class="value">0</span></div>
+                <div><span class="label">Step</span><span id="stat-step" class="value">0 / 0</span></div>
+            </div>
+
+            <ul class="legend">
+                <li><span class="chip" style="background:#4d8fe6"></span>Not sorted yet</li>
+                <li><span class="chip" style="background:#ff8c1f"></span>Being compared / swapped</li>
+                <li><span class="chip" style="background:#1c2e70"></span>In final place</li>
+                <li><span class="chip" style="background:#9e5cdb"></span>Pivot (quick sort)</li>
+                <li><span class="chip" style="background:#a8b8cc"></span>Outside current range (quick sort)</li>
+            </ul>
+        </aside>
+    </main>
+
+    <!-- Control bar: every button and slider is wired up in controls.js -->
+    <footer class="controls">
+        <div class="group">
+            <span class="group-label">Algorithm</span>
+            <button data-algo="bubble">1 Bubble</button>
+            <button data-algo="insertion">2 Insertion</button>
+            <button data-algo="selection">3 Selection</button>
+            <button data-algo="quick">4 Quick</button>
+        </div>
+        <div class="group">
+            <label for="size-slider" class="group-label">Size <span id="size-value"></span></label>
+            <input id="size-slider" type="range" min="5" max="40" step="1">
+            <label for="speed-slider" class="group-label">Speed <span id="speed-value"></span></label>
+            <input id="speed-slider" type="range" min="1" max="10" step="1">
+        </div>
+        <div class="group">
+            <button id="btn-play" class="primary">Play</button>
+            <button id="btn-step">Step →</button>
+            <button id="btn-restart">Restart</button>
+            <button id="btn-shuffle">Shuffle</button>
+        </div>
+        <div class="group">
+            <button id="btn-view">Front view (O)</button>
+            <button id="btn-camera">Reset camera</button>
+        </div>
+    </footer>
+</body>
+</html>
