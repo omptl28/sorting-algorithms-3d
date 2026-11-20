@@ -1,0 +1,219 @@
+/* Layout: header on top, 3D canvas + side panel in the middle, control bar at the bottom. */
+
+/* ---- Colour palette (same colours as the bars in main.js) ---- */
+:root {
+    --bg: #f6f7fb;
+    --panel: #ffffff;
+    --border: #dde1ea;
+    --text: #1d2433;
+    --muted: #5d6679;
+    --navy: #1c2e70;
+    --orange: #ff8c1f;
+    --blue: #4d8fe6;
+}
+
+/* ---- Page frame: full-height column ---- */
+* { box-sizing: border-box; }
+
+html, body {
+    margin: 0;
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    font-size: 14px;
+}
+
+body {
+    display: flex;
+    flex-direction: column;
+}
+
+/* ---- Title bar ---- */
+header {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    padding: 10px 16px;
+    background: var(--navy);
+    color: #fff;
+}
+
+header h1 { margin: 0; font-size: 18px; }
+header .subtitle { opacity: 0.75; font-size: 13px; }
+
+/* ---- Middle row: 3D view (flexible width) + side panel (fixed width) ---- */
+main {
+    flex: 1;
+    display: flex;
+    min-height: 0;
+}
+
+.viewport {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+}
+
+/* The WebGL canvas fills the view. The grab / grabbing hand shows that you can drag to orbit. */
+#gl-canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    cursor: grab;
+    touch-action: none;
+}
+
+#gl-canvas:active { cursor: grabbing; }
+#gl-canvas.ortho, #gl-canvas.ortho:active { cursor: default; }   /* front view can't be dragged */
+
+/* ---- Text drawn on top of the 3D view (status, view badge, key help); clicks pass through ---- */
+.overlay {
+    position: absolute;
+    pointer-events: none;
+}
+
+.top-left { top: 10px; left: 12px; right: 200px; }
+.top-right { top: 10px; right: 12px; }
+.bottom-left { bottom: 8px; left: 12px; right: 12px; }
+
+.status {
+    display: inline-block;
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.badge {
+    background: rgba(28, 46, 112, 0.9);
+    color: #fff;
+    border-radius: 6px;
+    padding: 4px 8px;
+    font-size: 12px;
+}
+
+.help {
+    color: var(--muted);
+    font-size: 12px;
+}
+
+/* ---- Side panel: pseudocode, counters, legend ---- */
+.panel {
+    width: 320px;
+    flex-shrink: 0;
+    background: var(--panel);
+    border-left: 1px solid var(--border);
+    padding: 14px 16px;
+    overflow-y: auto;
+}
+
+.panel h2 {
+    margin: 0 0 8px;
+    font-size: 16px;
+    color: var(--navy);
+}
+
+/* Pseudocode list; the running line gets the .active highlight (set in panel.js) */
+.pseudocode {
+    list-style: none;
+    margin: 0 0 14px;
+    padding: 8px 0;
+    background: #f3f5f9;
+    border-radius: 6px;
+    font-family: Consolas, Menlo, monospace;
+    font-size: 12px;
+}
+
+.pseudocode li {
+    white-space: pre;
+    padding: 2px 10px;
+    border-left: 3px solid transparent;
+}
+
+.pseudocode li.active {
+    background: #ffe7cf;
+    border-left-color: var(--orange);
+    font-weight: 700;
+}
+
+/* Three counters side by side: comparisons, swaps, step */
+.stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-bottom: 14px;
+}
+
+.stats > div {
+    background: #f3f5f9;
+    border-radius: 6px;
+    padding: 6px 8px;
+    display: flex;
+    flex-direction: column;
+}
+
+.stats .label { font-size: 11px; color: var(--muted); }
+.stats .value { font-size: 18px; font-weight: 700; color: var(--navy); }
+
+/* Colour legend; each .chip is a small coloured square */
+.legend {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    font-size: 12.5px;
+}
+
+.legend li { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
+.chip { width: 14px; height: 14px; border-radius: 3px; display: inline-block; }
+
+/* ---- Control bar at the bottom; groups wrap onto a second line on narrow screens ---- */
+.controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 16px;
+    align-items: center;
+    padding: 10px 16px;
+    background: var(--panel);
+    border-top: 1px solid var(--border);
+}
+
+.group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.group-label {
+    color: var(--muted);
+    font-size: 12px;
+    margin-right: 2px;
+}
+
+/* Buttons: .selected = chosen algorithm, .primary = the orange Play/Pause button */
+button {
+    font: inherit;
+    padding: 6px 11px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: #fff;
+    color: var(--text);
+    cursor: pointer;
+}
+
+button:hover { border-color: var(--blue); }
+button.selected { background: var(--navy); border-color: var(--navy); color: #fff; }
+button.primary { background: var(--orange); border-color: var(--orange); color: #fff; font-weight: 600; min-width: 70px; }
+
+input[type="range"] { width: 90px; cursor: pointer; }
+
+/* ---- Phones and narrow windows: stack the side panel under the 3D view ---- */
+@media (max-width: 760px) {
+    main { flex-direction: column; }
+    .viewport { min-height: 55vh; }
+    .panel { width: 100%; border-left: none; border-top: 1px solid var(--border); }
+    .top-left { right: 12px; }
+    .help { display: none; }
+}
